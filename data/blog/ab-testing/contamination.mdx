@@ -1,0 +1,217 @@
+---
+title: 'Handling Contamination in AB Testing: Mobile App Feature Launch'
+date: '2024-04-15'
+tags: ['AB testing', 'contamination', 'mobile apps', 'causal inference', 'python', 'data science']
+summary: An advanced case study demonstrating techniques to handle population contamination in an AB test for a new mobile app feature, using difference-in-differences analysis and instrumental variables.
+---
+
+# Handling Contamination in AB Testing: Mobile App Feature Launch
+
+## Introduction
+
+In this case study, we'll explore a complex AB testing scenario where population contamination occurs during the launch of a new feature in a mobile app. We'll demonstrate advanced techniques to handle this contamination and extract meaningful results despite the challenges.
+
+## The Scenario
+
+A social media company is testing a new "Stories" feature in their mobile app. The feature was intended to be released to a random 50% of users (treatment group), with the other 50% serving as the control group. However, due to a technical glitch, some users in the control group gained access to the feature, and some in the treatment group didn't receive it as intended.
+
+Additionally, there's suspicion that news of the new feature spread among users, potentially influencing the behavior of those who didn't have access to it.
+
+## Test Design and Complications
+
+- Test duration: 4 weeks
+- Intended split: 50% treatment, 50% control
+- Key Metric: Daily Active Users (DAU)
+- Complications:
+  1. Feature access contamination: Some control users got the feature, some treatment users didn't
+  2. Information contamination: Control users might be aware of the feature
+  3. Time-based rollout: The glitch caused a gradual rollout instead of an instant split
+
+## Approach
+
+To handle these complications, we'll use a combination of techniques:
+
+1. Intention-to-Treat (ITT) analysis
+2. Difference-in-Differences (DiD) analysis
+3. Instrumental Variables (IV) approach
+
+## Data Generation and Analysis
+
+Let's use Python to generate our artificial data and perform the analysis.
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+# Set random seed for reproducibility
+np.random.seed(42)
+
+# Generate data
+def generate_data(n_users, n_days):
+    user_ids = range(n_users)
+    assigned_treatment = np.random.binomial(1, 0.5, n_users)
+    actual_treatment = np.random.binomial(1, 0.9, n_users) * assigned_treatment + np.random.binomial(1, 0.1, n_users) * (1 - assigned_treatment)
+
+    data = []
+    for day in range(n_days):
+        for user in user_ids:
+            baseline_dau = np.random.binomial(1, 0.5)
+            treatment_effect = 0.1 if actual_treatment[user] == 1 and day >= 7 else 0
+            spillover_effect = 0.02 if assigned_treatment[user] == 0 and day >= 14 else 0
+            dau = np.random.binomial(1, min(1, 0.5 + treatment_effect + spillover_effect))
+
+            data.append({
+                'user_id': user,
+                'day': day,
+                'assigned_treatment': assigned_treatment[user],
+                'actual_treatment': actual_treatment[user],
+                'dau': dau
+            })
+
+    return pd.DataFrame(data)
+
+# Generate data
+n_users = 10000
+n_days = 28
+df = generate_data(n_users, n_days)
+
+# Intention-to-Treat (ITT) Analysis
+itt_effect = df[df['day'] >= 7].groupby('assigned_treatment')['dau'].mean().diff().iloc[-1]
+print(f"ITT Effect: {itt_effect:.4f}")
+
+# Difference-in-Differences Analysis
+pre_period = df[df['day'] < 7].groupby(['user_id', 'assigned_treatment'])['dau'].mean().reset_index()
+post_period = df[df['day'] >= 7].groupby(['user_id', 'assigned_treatment'])['dau'].mean().reset_index()
+
+did_data = pre_period.merge(post_period, on=['user_id', 'assigned_treatment'], suffixes=('_pre', '_post'))
+did_data['dau_diff'] = did_data['dau_post'] - did_data['dau_pre']
+
+did_effect = did_data.groupby('assigned_treatment')['dau_diff'].mean().diff().iloc[-1]
+print(f"DiD Effect: {did_effect:.4f}")
+
+# Instrumental Variables Analysis
+df_iv = df[df['day'] >= 7].groupby('user_id').agg({
+    'assigned_treatment': 'first',
+    'actual_treatment': 'first',
+    'dau': 'mean'
+}).reset_index()
+
+stage1 = sm.OLS.from_formula('actual_treatment ~ assigned_treatment', data=df_iv).fit()
+df_iv['predicted_treatment'] = stage1.predict(df_iv)
+
+stage2 = sm.OLS.from_formula('dau ~ predicted_treatment', data=df_iv).fit()
+iv_effect = stage2.params['predicted_treatment']
+print(f"IV Effect: {iv_effect:.4f}")
+
+# Visualize daily trends
+daily_trends = df.groupby(['day', 'assigned_treatment'])['dau'].mean().unstack()
+plt.figure(figsize=(12, 6))
+daily_trends.plot(ax=plt.gca())
+plt.title('Daily Active Users Trend')
+plt.xlabel('Day')
+plt.ylabel('DAU Rate')
+plt.legend(title='Assigned Treatment', labels=['Control', 'Treatment'])
+plt.axvline(x=7, color='r', linestyle='--', label='Feature Launch')
+plt.axvline(x=14, color='g', linestyle='--', label='Spillover Start')
+plt.legend()
+plt.show()
+
+# Time-based rollout analysis
+rollout_effect = df.groupby('day').apply(lambda x: x[x['actual_treatment'] == 1]['dau'].mean() - x[x['actual_treatment'] == 0]['dau'].mean())
+plt.figure(figsize=(12, 6))
+rollout_effect.plot(ax=plt.gca())
+plt.title('Daily Treatment Effect')
+plt.xlabel('Day')
+plt.ylabel('Difference in DAU Rate (Treatment - Control)')
+plt.axhline(y=0, color='r', linestyle='--')
+plt.show()
+```
+![DAU Trend](/static/images/abtesting/DAU_trend.png)
+
+![DAU Difference](/static/images/abtesting/DID_DAU.png)
+## Results and Interpretation
+
+### Quantitative Analysis Results
+
+1. **Intention-to-Treat (ITT) Analysis**
+   ITT Effect: 0.0696
+
+   The ITT analysis shows a 6.96 percentage point increase in Daily Active Users (DAU) for users assigned to the treatment group, regardless of whether they actually received the feature.
+
+2. **Difference-in-Differences (DiD) Analysis**
+   DiD Effect: 0.0724
+
+   The DiD analysis, which accounts for pre-existing differences and time trends, estimates a 7.24 percentage point increase in DAU due to the new feature.
+
+3. **Instrumental Variables (IV) Analysis**
+   IV Effect: 0.0872
+
+   The IV analysis, which attempts to correct for the contamination in feature access, suggests an 8.72 percentage point increase in DAU for users who actually received the new feature.
+
+### Daily Trends Visualization
+
+The "Daily Active Users Trend" graph reveals several key insights:
+
+1. **Pre-launch period (Days 0-7)**: Both groups show similar DAU rates, fluctuating around 0.50, indicating a balanced randomization.
+
+2. **Immediate post-launch effect (Day 7-14)**: There's a sharp increase in the treatment group's DAU rate, jumping to around 0.59, while the control group remains relatively stable.
+
+3. **Spillover period (After Day 14)**: The control group's DAU rate begins to increase slightly, possibly due to information contamination.
+
+4. **Sustained effect**: The treatment group maintains a higher DAU rate throughout the experiment, with the gap between treatment and control groups persisting.
+
+5. **Variability**: Both groups show day-to-day fluctuations, but the treatment group exhibits higher variability post-launch.
+
+### Time-based Rollout Analysis
+
+The "Daily Treatment Effect" graph provides insights into the evolution of the feature's impact:
+
+1. **Pre-launch period (Days 0-7)**: The effect fluctuates around zero, as expected before the feature launch.
+
+2. **Immediate post-launch (Day 7-8)**: There's a dramatic increase in the treatment effect, peaking at about 0.11 (11 percentage points).
+
+3. **Post-launch stability (Days 8-28)**: The effect stabilizes, fluctuating mostly between 0.08 and 0.11, indicating a consistent positive impact of the feature.
+
+4. **No clear decay**: Unlike many feature launches, there's no obvious decay in the treatment effect over time, suggesting sustained user interest.
+
+5. **Daily volatility**: The effect shows day-to-day variations, which could be due to various factors like day of the week effects or external events.
+
+## Conclusions and Recommendations
+
+1. **Feature Impact**: All three analysis methods (ITT, DiD, and IV) consistently show a positive impact of the "Stories" feature on Daily Active Users. The IV estimate of 8.72 percentage points is likely the most accurate representation of the feature's effect, as it accounts for the contamination issues.
+
+2. **Robust Positive Effect**: The sustained positive effect visible in both the daily trends and the time-based rollout analysis suggests that the feature has genuine, lasting appeal to users.
+
+3. **Spillover Effects**: The slight increase in the control group's DAU rate after day 14 indicates potential information spillover. This suggests that the feature's popularity may be driving increased engagement even among users who don't have access to it.
+
+4. **Contamination Handling**: The progression from ITT (6.96%) to DiD (7.24%) to IV (8.72%) demonstrates the importance of using advanced analytical techniques when dealing with contaminated experiments. Each method provides a more refined estimate of the true treatment effect.
+
+5. **Full Rollout Recommendation**: Given the consistently positive effects observed across all analyses and the lack of decay in the treatment effect, we strongly recommend rolling out the "Stories" feature to all users.
+
+6. **Gradual Rollout Insights**: The time-based rollout analysis shows an immediate and sustained positive effect. This suggests that a gradual rollout strategy could be effective for future feature launches, allowing for real-time monitoring and adjustments.
+
+7. **Future Test Design**: To mitigate contamination in future tests:
+   - Implement stricter access controls to prevent unintended feature availability.
+   - Consider cluster-based randomization to reduce spillover effects.
+   - Plan for potential contamination by collecting data on actual feature usage and awareness from the outset of the experiment.
+
+8. **Long-term Monitoring**: While the feature shows no decay in effect over the 28-day period, continue monitoring its impact over a longer timeframe to ensure sustained engagement and to inform future feature development.
+
+These insights provide a comprehensive understanding of the "Stories" feature's impact, accounting for the complexities introduced by contamination. The multi-faceted analytical approach has allowed us to extract reliable conclusions from a challenging experimental scenario, demonstrating the value of advanced statistical techniques in real-world AB testing situations.
+
+
+## Limitations and Future Work
+
+- While our methods help address contamination, they rely on certain assumptions (e.g., the exclusion restriction for IV) that may not always hold perfectly in practice.
+- The analysis doesn't account for long-term effects or potential novelty effects that might wear off over time.
+- Future work could involve:
+  - Conducting a follow-up analysis after full rollout to validate these findings
+  - Exploring heterogeneous treatment effects across different user segments
+  - Investigating the mechanisms behind the spillover effects to inform future feature launch strategies
+
+This case study demonstrates the challenges of real-world AB testing and showcases advanced techniques for handling complications like contamination. By employing a multi-faceted analytical approach, we've extracted valuable insights despite the messy nature of the data, providing actionable recommendations for product development and future experimentation strategies.

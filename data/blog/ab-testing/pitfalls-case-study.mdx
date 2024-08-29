@@ -1,0 +1,179 @@
+---
+title: "When AB Testing Fails: The Pitfall of Short-Term Metrics in E-commerce"
+date: "2024-05-01"
+tags: ["AB testing", "e-commerce", "long-term effects", "python", "data science", "decision making"]
+summary: A case study demonstrating how reliance on short-term AB test results can lead to suboptimal long-term outcomes in an e-commerce setting.
+---
+
+# When AB Testing Fails: The Pitfall of Short-Term Metrics in E-commerce
+
+## Introduction
+
+AB testing is a powerful tool for data-driven decision making, but it's not without its limitations. This case study explores a scenario where following the results of a traditional AB test leads to a decision that, while appearing beneficial in the short term, ultimately harms the business in the long run.
+
+## The Scenario
+
+An e-commerce company is testing a new promotional strategy: offering steep discounts to first-time customers. The hypothesis is that this will increase customer acquisition and lead to higher long-term value. They set up an AB test with the following parameters:
+
+- Control Group (A): Standard pricing for all customers
+- Treatment Group (B): 50% discount for first-time customers
+
+The primary metric for the AB test is the number of new customer acquisitions over a 30-day period. Secondary metrics include revenue and average order value.
+
+## The Pitfall
+
+What the AB test fails to capture:
+1. The long-term purchasing behavior of customers acquired through deep discounts
+2. The impact on brand perception and willingness to pay full price in the future
+3. The potential for discount abuse (e.g., customers creating multiple accounts)
+
+## Data Generation and Analysis
+
+Let's use Python to generate artificial data that demonstrates this scenario:
+
+```python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+np.random.seed(42)
+
+def generate_customer_data(n_customers, is_treatment):
+    data = []
+    for _ in range(n_customers):
+        if is_treatment:
+            initial_purchase = np.random.normal(50, 10)  # 50% off the average order of 100
+            future_purchases = np.random.normal(60, 20, 5)  # Slightly lower future purchases
+        else:
+            initial_purchase = np.random.normal(100, 20)
+            future_purchases = np.random.normal(100, 20, 5)
+        
+        data.append({
+            'initial_purchase': max(0, initial_purchase),
+            'future_purchases': [max(0, p) for p in future_purchases],
+            'is_treatment': is_treatment
+        })
+    return pd.DataFrame(data)
+
+# Generate data
+control_data = generate_customer_data(1000, False)
+treatment_data = generate_customer_data(1500, True)  # More customers due to discounts
+
+# Analyze short-term results (initial purchase only)
+def analyze_short_term(control, treatment):
+    control_revenue = control['initial_purchase'].sum()
+    treatment_revenue = treatment['initial_purchase'].sum()
+    control_customers = len(control)
+    treatment_customers = len(treatment)
+    
+    print(f"Short-term Results:")
+    print(f"Control: {control_customers} customers, ${control_revenue:.2f} revenue")
+    print(f"Treatment: {treatment_customers} customers, ${treatment_revenue:.2f} revenue")
+    print(f"Customer Increase: {(treatment_customers - control_customers) / control_customers:.2%}")
+    print(f"Revenue Change: {(treatment_revenue - control_revenue) / control_revenue:.2%}")
+
+# Analyze long-term results (including future purchases)
+def analyze_long_term(control, treatment):
+    control_revenue = control['initial_purchase'].sum() + control['future_purchases'].apply(sum).sum()
+    treatment_revenue = treatment['initial_purchase'].sum() + treatment['future_purchases'].apply(sum).sum()
+    
+    print(f"\nLong-term Results:")
+    print(f"Control: ${control_revenue:.2f} revenue")
+    print(f"Treatment: ${treatment_revenue:.2f} revenue")
+    print(f"Revenue Change: {(treatment_revenue - control_revenue) / control_revenue:.2%}")
+
+# Run analyses
+analyze_short_term(control_data, treatment_data)
+analyze_long_term(control_data, treatment_data)
+
+# Calculate LTV
+control_data['ltv'] = control_data['initial_purchase'] + control_data['future_purchases'].apply(sum)
+treatment_data['ltv'] = treatment_data['initial_purchase'] + treatment_data['future_purchases'].apply(sum)
+
+# Visualize customer lifetime value
+plt.figure(figsize=(10, 6))
+plt.hist([control_data['ltv'], treatment_data['ltv']], label=['Control', 'Treatment'], 
+         bins=30, alpha=0.7, density=True)
+plt.title('Distribution of Customer Lifetime Value')
+plt.xlabel('Lifetime Value ($)')
+plt.ylabel('Density')
+plt.legend()
+plt.show()
+
+# Statistical test for long-term difference
+t_stat, p_value = stats.ttest_ind(control_data['ltv'], treatment_data['ltv'])
+print(f"\nStatistical Test for Difference in Lifetime Value:")
+print(f"t-statistic: {t_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
+```
+
+
+## Results and Interpretation
+
+### Short-term Results
+- Control: 1000 customers, $100,264.69 revenue
+- Treatment: 1500 customers, $75,290.59 revenue
+- Customer Increase: 50.00%
+- Revenue Change: -24.91%
+
+In the short term, the treatment group (with the 50% discount for first-time customers) showed a significant 50% increase in customer acquisition. However, this came at the cost of a 24.91% decrease in revenue compared to the control group.
+
+### Long-term Results
+- Control: $599,625.44 revenue
+- Treatment: $525,814.42 revenue
+- Revenue Change: -12.31%
+
+Over the long term, the negative impact on revenue persisted. The treatment group generated 12.31% less revenue than the control group, despite initially acquiring more customers.
+
+### Statistical Test for Difference in Lifetime Value
+- t-statistic: 131.5959
+- p-value: 0.0000
+
+The statistical test shows a highly significant difference in customer lifetime value between the control and treatment groups. The extremely low p-value (0.0000) indicates that this difference is not due to chance.
+
+### Customer Lifetime Value Distribution
+
+The histogram of Customer Lifetime Value reveals several key insights:
+
+1. **Distinct Distributions**: The control group (blue) and treatment group (orange) show clearly different distributions of lifetime value.
+
+2. **Higher Peak for Treatment**: The treatment group has a higher, narrower peak centered around $300-$400, indicating a more concentrated but lower lifetime value for most customers.
+
+3. **Wider Spread for Control**: The control group's distribution is wider and shifted to the right, with a peak around $550-$600, suggesting higher and more varied lifetime values.
+
+4. **Long Tail**: The control group shows a longer right tail, indicating some very high-value customers that are absent in the treatment group.
+
+5. **Lower Minimum LTV**: The treatment group distribution starts at a lower value (around $200) compared to the control group (starting around $400), likely due to the initial discount.
+
+## Analysis and Insights
+
+1. **Short-term Acquisition vs. Long-term Value**: While the discount strategy successfully increased customer acquisition by 50%, it led to significant revenue losses both in the short term (-24.91%) and long term (-12.31%).
+
+2. **Changed Customer Behavior**: The lower lifetime values in the treatment group suggest that customers acquired through deep discounts tend to spend less over time. This could be due to anchoring effects, attracting price-sensitive customers, or potential devaluation of the brand.
+
+3. **Statistical Significance**: The extremely low p-value (0.0000) provides strong evidence that the difference in customer lifetime value between the groups is real and not due to chance.
+
+4. **Revenue Impact**: The initial severe revenue loss (-24.91%) is partially recovered over time, but even in the long term, the treatment group fails to match the control group's revenue.
+
+5. **Customer Segmentation**: The wider spread of lifetime values in the control group suggests a more diverse customer base, including some very high-value customers that the discount strategy fails to attract or retain.
+
+These results demonstrate how a strategy that appears successful in the short term (increased customer acquisition) can lead to detrimental outcomes in the long run (decreased revenue and lower customer lifetime value). It highlights the importance of considering long-term metrics and conducting thorough statistical analysis when evaluating the results of AB tests.
+
+## Recommendations
+
+1. **Extend Test Duration**: For strategies that may have long-term implications, consider running longer tests or implementing phased rollouts with continual monitoring.
+
+2. **Holistic Metric Evaluation**: Incorporate a broader range of metrics in decision-making, including customer lifetime value projections, repeat purchase rates, and brand perception metrics.
+
+3. **Segmentation Analysis**: Analyze the long-term behavior of different customer segments to identify which groups respond best to discount strategies without negatively impacting their long-term value.
+
+4. **Alternative Strategies**: Explore alternative customer acquisition strategies that don't rely on deep discounts, such as product bundling, loyalty programs, or value-added services.
+
+5. **Controlled Rollout**: If implementing the discount strategy, consider a more controlled rollout with careful monitoring of long-term customer behavior and adjustments as necessary.
+
+## Conclusion
+
+This case study demonstrates how relying solely on short-term AB test results can lead to decisions that harm long-term business outcomes. While AB testing remains a valuable tool, it must be applied thoughtfully, with consideration for long-term effects and broader business context. By combining AB testing with other analytical approaches and longer-term monitoring, businesses can make more informed decisions that balance short-term gains with long-term sustainability.
+

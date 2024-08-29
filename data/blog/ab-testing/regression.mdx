@@ -1,0 +1,243 @@
+---
+title: "Regression Analysis of AB Test Results: E-commerce Checkout Optimization"
+date: "2024-04-05"
+tags: ["AB testing", "regression analysis", "e-commerce", "python", "data science", "statistics"]
+summary: A comprehensive case study demonstrating the use of regression analysis to evaluate AB test results for an e-commerce checkout process optimization, accounting for various user and session characteristics.
+---
+
+# Regression Analysis of AB Test Results: E-commerce Checkout Optimization
+
+## Introduction
+
+In this case study, we'll explore how regression analysis can be applied to AB test results to gain deeper insights into the effectiveness of a new checkout process for an e-commerce platform. By using regression, we can control for various factors that might influence the outcome, providing a more nuanced understanding of the test results.
+
+## The Scenario
+
+An e-commerce company has developed a new streamlined checkout process aimed at reducing cart abandonment and increasing conversion rates. They've conducted an AB test, randomly assigning users to either the control group (old checkout) or the treatment group (new checkout). However, they suspect that various factors such as user demographics, device type, and cart value might influence the effectiveness of the new checkout process.
+
+## Hypothesis
+
+- Null Hypothesis (H0): The new checkout process has no significant effect on conversion rates when controlling for other relevant factors.
+- Alternative Hypothesis (H1): The new checkout process significantly improves conversion rates, even when accounting for other relevant factors.
+
+## Test Design
+
+- Test duration: 2 weeks
+- Sample size: 50,000 users (25,000 per group)
+- Dependent variable: Conversion (binary: 1 if purchase completed, 0 if abandoned)
+- Independent variables:
+  - Treatment (binary: 1 for new checkout, 0 for old checkout)
+  - Age (continuous)
+  - Gender (binary: 0 for male, 1 for female)
+  - Device Type (categorical: Desktop, Mobile, Tablet)
+  - Cart Value (continuous)
+  - Time of Day (categorical: Morning, Afternoon, Evening, Night)
+
+## Data Generation and Analysis
+
+Let's use Python to generate our artificial data and perform the regression analysis.
+
+```python
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set random seed for reproducibility
+np.random.seed(42)
+
+# Generate data
+def generate_data(n_samples):
+    treatment = np.random.binomial(1, 0.5, n_samples)
+    age = np.random.normal(35, 10, n_samples)
+    gender = np.random.binomial(1, 0.5, n_samples)
+    device_type = np.random.choice(['Desktop', 'Mobile', 'Tablet'], n_samples)
+    cart_value = np.random.lognormal(4, 1, n_samples)
+    time_of_day = np.random.choice(['Morning', 'Afternoon', 'Evening', 'Night'], n_samples)
+    
+    # Base conversion rate
+    conversion_rate = 0.1
+    
+    # Effect of treatment
+    conversion_rate += 0.05 * treatment
+    
+    # Effect of age (slight increase for middle-aged users)
+    conversion_rate += 0.001 * (age - 35) - 0.0001 * (age - 35)**2
+    
+    # Effect of gender (slightly higher for females)
+    conversion_rate += 0.02 * gender
+    
+    # Effect of device type
+    conversion_rate += np.where(device_type == 'Desktop', 0.03, 
+                                np.where(device_type == 'Mobile', -0.02, 0))
+    
+    # Effect of cart value (higher conversion for higher values)
+    conversion_rate += 0.02 * np.log(cart_value)
+    
+    # Effect of time of day
+    conversion_rate += np.where(time_of_day == 'Morning', 0.01,
+                                np.where(time_of_day == 'Evening', 0.03, 0))
+    
+    # Ensure conversion rate is between 0 and 1
+    conversion_rate = np.clip(conversion_rate, 0, 1)
+    
+    # Generate conversions
+    conversion = np.random.binomial(1, conversion_rate)
+    
+    return pd.DataFrame({
+        'treatment': treatment,
+        'age': age,
+        'gender': gender,
+        'device_type': device_type,
+        'cart_value': cart_value,
+        'time_of_day': time_of_day,
+        'conversion': conversion
+    })
+
+# Generate data
+data = generate_data(50000)
+
+# Prepare data for regression
+X = data.drop('conversion', axis=1)
+y = data['conversion']
+
+# Create a pipeline with preprocessing and logistic regression
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', 'passthrough', ['treatment', 'age', 'gender', 'cart_value']),
+        ('cat', OneHotEncoder(drop='first', sparse=False), ['device_type', 'time_of_day'])
+    ])
+
+model = Pipeline([
+    ('preprocessor', preprocessor),
+    ('classifier', LogisticRegression())
+])
+
+# Fit the model
+model.fit(X, y)
+
+# Get feature names after preprocessing
+feature_names = (['treatment', 'age', 'gender', 'cart_value'] + 
+                 model.named_steps['preprocessor'].named_transformers_['cat'].get_feature_names(['device_type', 'time_of_day']).tolist())
+
+# Get coefficients
+coefficients = model.named_steps['classifier'].coef_[0]
+
+# Create a DataFrame of features and their coefficients
+coef_df = pd.DataFrame({'feature': feature_names, 'coefficient': coefficients})
+coef_df = coef_df.sort_values('coefficient', ascending=False)
+
+# Print coefficients
+print(coef_df)
+
+# Perform statistical analysis using statsmodels
+X_with_constant = sm.add_constant(model.named_steps['preprocessor'].transform(X))
+logit_model = sm.Logit(y, X_with_constant)
+results = logit_model.fit()
+print(results.summary())
+
+# Visualize coefficients
+plt.figure(figsize=(12, 6))
+sns.barplot(x='coefficient', y='feature', data=coef_df)
+plt.title('Feature Coefficients')
+plt.xlabel('Coefficient Value')
+plt.ylabel('Feature')
+plt.show()
+
+# Calculate and print overall conversion rates
+control_conversion = data[data['treatment'] == 0]['conversion'].mean()
+treatment_conversion = data[data['treatment'] == 1]['conversion'].mean()
+print(f"Control group conversion rate: {control_conversion:.4f}")
+print(f"Treatment group conversion rate: {treatment_conversion:.4f}")
+print(f"Absolute lift: {treatment_conversion - control_conversion:.4f}")
+print(f"Relative lift: {(treatment_conversion - control_conversion) / control_conversion:.4f}")
+```
+
+## Results and Interpretation
+
+Based on our logistic regression analysis, here are the detailed results:
+
+### Coefficient Summary
+
+| Feature             | Coefficient |
+|---------------------|-------------|
+| treatment           | 0.288534    |
+| time_of_day_Evening | 0.140136    |
+| gender              | 0.138568    |
+| time_of_day_Morning | 0.064445    |
+| age                 | 0.006179    |
+| cart_value          | 0.000710    |
+| time_of_day_Night   | -0.047079   |
+| device_type_Tablet  | -0.173598   |
+| device_type_Mobile  | -0.226844   |
+
+### Overall Impact
+
+- Control group conversion rate: 0.1949 (19.49%)
+- Treatment group conversion rate: 0.2445 (24.45%)
+- Absolute lift: 0.0496 (4.96 percentage points)
+- Relative lift: 0.2546 (25.46%)
+
+### Coefficient Interpretation
+
+1. **Treatment**: The coefficient for the treatment variable is 0.288534, indicating that the new checkout process increases the log-odds of conversion by this amount, holding all other variables constant. This translates to approximately a 33.4% increase in the odds of conversion (e^0.288534 = 1.334).
+
+2. **Time of Day**: 
+   - Evening has the strongest positive effect (0.140136), followed by Morning (0.064445).
+   - Night has a slight negative effect (-0.047079) compared to the baseline (likely Afternoon).
+
+3. **Gender**: The positive coefficient (0.138568) suggests that being female (assuming gender is coded 0 for male, 1 for female) increases the log-odds of conversion.
+
+4. **Age**: There's a small positive effect (0.006179) for each year increase in age.
+
+5. **Cart Value**: A very small positive effect (0.000710) for each unit increase in cart value.
+
+6. **Device Type**: 
+   - Both Tablet (-0.173598) and Mobile (-0.226844) have negative effects compared to the baseline (Desktop).
+   - Mobile devices have the strongest negative impact on conversion.
+
+### Statistical Significance
+
+Based on the p-values from the statsmodels summary:
+
+- The treatment effect is highly statistically significant (p < 0.001), confirming that the new checkout process has a real impact on conversion rates.
+- All variables except for time_of_day_Night (p = 0.180) are statistically significant at the 0.05 level.
+- The model as a whole is statistically significant (LLR p-value: 1.052e-91).
+
+### Model Fit
+
+- The pseudo R-squared value of 0.008587 suggests that while our model is statistically significant, it explains only a small portion of the variance in conversion rates. This is not uncommon for logistic regression models predicting rare events like conversions.
+
+## Conclusions and Recommendations
+
+1. **Implement the New Checkout Process**: The new checkout process shows a substantial and statistically significant improvement in conversion rates, with a relative lift of 25.46%. We strongly recommend implementing this new process for all users.
+
+2. **Time-Based Strategies**: 
+   - Focus on optimizing the user experience during evening hours when conversion rates are highest.
+   - Consider special promotions or features for morning sessions to capitalize on the positive effect.
+   - Investigate why night-time conversions are lower and consider strategies to improve them.
+
+3. **Mobile Optimization**: The significant negative impact of mobile devices on conversion rates suggests an urgent need for mobile checkout optimization. This could involve:
+   - Simplifying the mobile checkout process
+   - Improving mobile UI/UX
+   - Implementing mobile-specific features like digital wallet integration
+
+4. **Personalization Opportunities**: 
+   - Consider tailoring the checkout experience based on user demographics, particularly age and gender.
+   - Explore ways to enhance the tablet user experience, as it also shows lower conversion rates compared to desktop.
+
+5. **Cart Value Strategies**: While the effect of cart value is small, it's positive. Consider implementing strategies to increase average cart value, such as product bundling or tiered shipping thresholds.
+
+## Limitations and Future Work
+
+- While statistically significant, our model's low pseudo R-squared suggests there are other important factors influencing conversion that we haven't captured. Future work should explore additional variables that might affect checkout conversion.
+- Consider testing interaction effects, particularly between treatment and device type, to see if the new checkout process is more effective on certain devices.
+- A longer test duration or larger sample size could help detect smaller effects and provide more robust estimates of the impact of less significant variables like time_of_day_Night.
+- Explore non-linear relationships, particularly for variables like age and cart value, using more advanced modeling techniques.
+
+This regression analysis has provided valuable insights beyond a simple AB test comparison. It has allowed us to quantify the impact of various factors on conversion rates and identify specific areas for improvement and personalization in our e-commerce checkout process.

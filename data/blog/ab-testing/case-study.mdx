@@ -1,0 +1,176 @@
+---
+title: 'AB Testing in Action: E-commerce Spend Optimization with Novelty Effect'
+date: '2024-03-10'
+tags: ['ab testing', 'python', 'experimentation', 'e-commerce']
+draft: false
+summary: A comprehensive case study demonstrating the application of AB testing to optimize customer spend in an e-commerce platform, including analysis of the novelty effect.
+---
+
+# AB Testing Case Study: E-commerce Spend Optimization
+
+## Introduction
+
+In this case study, we'll explore how AB testing can be used to optimize customer spend in an e-commerce platform. We'll simulate a scenario where a new recommendation algorithm is being tested against the current one, with the goal of increasing average customer spend. We'll also examine the novelty effect, which can sometimes lead to misleading initial results in AB tests.
+
+## The Scenario
+
+An e-commerce company wants to test a new product recommendation algorithm. They hypothesize that the new algorithm will lead to higher average customer spend. The test will be rolled out to 50% of the users (the treatment group), while the other 50% will continue to see recommendations from the current algorithm (the control group).
+
+## Hypothesis
+
+- Null Hypothesis (H0): There is no significant difference in average customer spend between the control and treatment groups.
+- Alternative Hypothesis (H1): The treatment group (new algorithm) will have a significantly higher average customer spend compared to the control group.
+
+## Test Design
+
+- Test duration: 4 weeks
+- Rollout: 50/50 split between control and treatment groups
+- Key Metric: Average customer spend per week
+- Secondary Metrics: 
+  - Conversion rate
+  - Number of items purchased
+
+## Data Generation and Analysis
+
+Let's use Python to generate our artificial data and perform the analysis. We'll use pandas for data manipulation, numpy for random number generation, and scipy for statistical testing.
+
+```python
+import pandas as pd
+import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Set random seed for reproducibility
+np.random.seed(42)
+
+# Generate data
+def generate_data(n_users, n_weeks, control_mean, treatment_mean, control_std, treatment_std, novelty_effect):
+    data = []
+    for user in range(n_users):
+        group = 'Control' if user < n_users // 2 else 'Treatment'
+        for week in range(n_weeks):
+            if group == 'Control':
+                spend = np.random.normal(control_mean, control_std)
+            else:
+                # Apply novelty effect: higher mean in first two weeks
+                if week < 2:
+                    spend = np.random.normal(treatment_mean + novelty_effect, treatment_std)
+                else:
+                    spend = np.random.normal(treatment_mean, treatment_std)
+            data.append({'User': user, 'Group': group, 'Week': week + 1, 'Spend': max(0, spend)})
+    return pd.DataFrame(data)
+
+# Parameters
+n_users = 10000
+n_weeks = 4
+control_mean = 50
+treatment_mean = 55
+control_std = 20
+treatment_std = 22
+novelty_effect = 10
+
+# Generate data
+df = generate_data(n_users, n_weeks, control_mean, treatment_mean, control_std, treatment_std, novelty_effect)
+
+# Analysis
+def analyze_results(df):
+    results = []
+    for week in range(1, n_weeks + 1):
+        week_data = df[df['Week'] == week]
+        control_data = week_data[week_data['Group'] == 'Control']['Spend']
+        treatment_data = week_data[week_data['Group'] == 'Treatment']['Spend']
+        
+        t_stat, p_value = stats.ttest_ind(control_data, treatment_data)
+        control_mean = control_data.mean()
+        treatment_mean = treatment_data.mean()
+        relative_lift = (treatment_mean - control_mean) / control_mean * 100
+        
+        results.append({
+            'Week': week,
+            'Control Mean': control_mean,
+            'Treatment Mean': treatment_mean,
+            'Relative Lift (%)': relative_lift,
+            'P-value': p_value
+        })
+    
+    return pd.DataFrame(results)
+
+results = analyze_results(df)
+print(results)
+
+# Visualization
+plt.figure(figsize=(12, 6))
+sns.lineplot(data=df, x='Week', y='Spend', hue='Group', ci='sd')
+plt.title('Average Spend Over Time')
+plt.xlabel('Week')
+plt.ylabel('Average Spend ($)')
+plt.show()
+```
+
+![AB Test Results Graph](/static/images/abtesting/casestudy_results.png)
+
+## Results and Interpretation
+
+Based on our analysis, here are the week-by-week results:
+
+| Week | Control Mean | Treatment Mean | Relative Lift (%) | P-value     |
+|------|--------------|----------------|-------------------|-------------|
+| 1    | 50.606646    | 64.663523      | 27.776740         | 1.399468e-231 |
+| 2    | 50.033734    | 64.585674      | 29.084257         | 8.538208e-256 |
+| 3    | 49.645161    | 55.182794      | 11.154427         | 3.556866e-39  |
+| 4    | 50.360057    | 54.797051      | 8.810542          | 2.890933e-26  |
+
+### Week-by-Week Analysis
+
+1. **Week 1**: We observe a significant increase in average spend for the treatment group, with a relative lift of 27.78%. This substantial difference is likely due to a combination of the new algorithm's effectiveness and a strong novelty effect.
+
+2. **Week 2**: The treatment group maintains a high average spend, with the relative lift slightly increasing to 29.08%. This suggests that the novelty effect is still strong, and users are continuing to respond positively to the new recommendations.
+
+3. **Week 3**: We see a notable decrease in the relative lift, dropping to 11.15%. This significant reduction indicates that the novelty effect is wearing off, but the new algorithm still outperforms the control.
+
+4. **Week 4**: The relative lift further decreases to 8.81%, which likely represents a more stable, long-term effect of the new recommendation algorithm.
+
+### Interpreting the Graph
+
+The graph visually represents the average spend over time for both the control and treatment groups:
+
+1. **Control Group (Blue Line)**: The control group's average spend remains relatively stable across all four weeks, hovering around the $50 mark. This consistency provides a good baseline for comparison.
+
+2. **Treatment Group (Orange Line)**: 
+   - Weeks 1-2: The treatment group shows a significantly higher average spend, around $64-65.
+   - Weeks 3-4: There's a noticeable drop in average spend, but it still remains higher than the control group.
+
+3. **Novelty Effect**: The graph clearly illustrates the novelty effect. The large gap between control and treatment in the first two weeks, followed by a convergence in weeks 3-4, visually demonstrates how the initial excitement of the new algorithm wears off over time.
+
+4. **Sustained Improvement**: Despite the decline, the treatment group's average spend remains above the control group even in weeks 3-4, suggesting a lasting positive impact of the new algorithm.
+
+5. **Variance**: The shaded areas represent the standard deviation. The treatment group shows larger variance, especially in the first two weeks, which could indicate more diverse user responses to the new algorithm.
+
+### Overall Impact
+
+- The new recommendation algorithm has a clear positive effect on average customer spend.
+- The novelty effect is substantial, inflating results in the first two weeks by nearly 30%.
+- Even after the novelty effect diminishes, we see a stabilized lift of about 8-11% in average spend for the treatment group.
+- All results are statistically significant, with extremely low p-values across all weeks.
+
+## Conclusions and Recommendations
+
+1. **Implement the New Algorithm**: Given the consistent positive lift in average spend, even after the novelty effect has worn off, we recommend implementing the new recommendation algorithm for all users.
+
+2. **Monitor Long-term Performance**: While the 4-week test shows promising results, we should continue to monitor the performance of the new algorithm over a longer period to ensure sustained positive impact.
+
+3. **Investigate Novelty Effect**: The strong initial performance followed by a decline suggests a novelty effect. We should investigate ways to maintain user engagement and spending levels over time.
+
+4. **Segment Analysis**: Conduct further analysis on user segments to identify if certain groups respond more positively to the new algorithm. This could inform future personalization efforts.
+
+5. **Iterative Improvement**: Use the insights gained from this test to inform the next iteration of the recommendation algorithm, potentially leading to even greater improvements in customer spend.
+
+## Limitations and Future Work
+
+- This study used simulated data. In a real-world scenario, we would need to account for additional factors such as seasonality, external events, and user heterogeneity.
+- We focused solely on average spend. Future tests should also consider metrics like user satisfaction and long-term retention.
+- A longer test duration could provide more insights into the long-term effects of the new algorithm.
+
+By conducting this AB test and carefully analyzing the results, including the novelty effect, we've demonstrated the value of the new recommendation algorithm while also highlighting the importance of considering short-term vs. long-term impacts in e-commerce optimizations.
+

@@ -1,0 +1,63 @@
+---
+title: Introduction to AB testing methodologies
+date: '2024-02-24'
+tags: ['ab testing', 'python', 'experimentation', 'data science']
+draft: false
+summary: 'The blog series is a effort to introduce the reader to the world of AB testing and experimentation.
+ The series will cover the basics of AB testing, the different methodologies, 
+ the different tools and libraries available and how to implement them in python. 
+ The series will also cover the different statistical tests and their applications in AB testing.
+ The series will also cover the different pitfalls'
+---
+
+# A/B testing Overview
+
+A/B testing, also known as split testing, is a method used to compare two versions of a webpage, app, email, or other marketing assets to determine which one performs better. It involves presenting two variants (A and B) to similar audiences at the same time and measuring their performance based on predefined metrics. The goal is to identify which variant generates more desirable outcomes, such as higher conversion rates, click-through rates, or engagement.
+
+Here's how A/B testing typically works:
+
+# Hypothesis
+
+First, you formulate a hypothesis about a change you want to test. This could be anything from altering the color of a button on a webpage to changing the subject line of an email. For example, you might hypothesize that changing the color of a call-to-action button from green to red will increase the click-through rate. Why red? Because it's a color that's often associated with urgency and action. 
+Your hypothesis might be that the color red will create a greater sense of urgency and prompt more people to click the button. Do you have data to back up this hypothesis? If not, you might want to run an A/B test to find out. If you do have data, you might still want to run an A/B test to see if the change has the same effect on your audience because the audience might be different from the one you have data on. 
+
+### H0 (null hypothesis): status quo, we don't expect any change. The null hypothesis usually states that there is no difference between treatment and control groups. (To put this another way, we’re saying our treatment outcome will be statistically similar to our control outcome ). In the example above, the null hypothesis would be that the color of the button does not affect the click-through rate.
+
+### HA (alternative hypothesis): The alternative hypothesis states that there is a difference between treatment and control groups. (In other words, the treatment outcome will be statistically different to the control outcome). In the example above, the alternative hypothesis would be that the color of the button does affect the click-through rate.
+
+HA and H0 are mutually exclusive and exhaustive. This means that if one is true, the other must be false. There is no middle ground. If the null hypothesis is rejected, then the alternative hypothesis is accepted. If the null hypothesis is not rejected, then the alternative hypothesis is rejected. If the null hypothesis cannot be rejected (i.e. there is not enough evidence to reject it), then the alternative hypothesis is not accepted (i.e. there is not enough evidence to accept it). 
+
+
+# Variant Creation
+Next, you create two versions of the element you're testing: A and B. Version A is typically the current version (control), while version B includes the modification you want to test (variation). In the example above, version A would be the green button, while version B would be the red button. If the change you're testing is more complex, such as a new webpage layout, you might need to create multiple variations to test. Also, you might want to test more than one change at a time. In that case, you would create multiple variations for each change and test all the combinations of the variations. Either way, you need to make sure that the changes you're testing are significant enough to make a difference in the outcome you're measuring.
+
+# Random Assignment
+Visitors or users are randomly assigned to either control or one of the variants. This randomization helps ensure that any differences in performance are due to the changes made and not to external factors like time of day or user demographics. This is why A/B testing is often referred to as a randomized controlled experiment where the users are randomly assigned to either the control or one of the variants without any bias. This is important because if the users are not randomly assigned, then the results of the test might be biased and not representative of the population. We want to make sure that the results of the test are generalizable to the population. 
+
+# Data Collection 
+As users interact with the different versions, their behavior is tracked and measured over a course of time. This data is then used to determine which version is more effective. In the example above, you would track how many people clicked the green button and how many clicked the red button. You would then compare the two click-through rates to see which one is higher. If the engagement is any different between the two groups, then we can attribute the difference to the change we made. 
+
+# Signifcance Testing
+
+We must ensure that the data we collect is statistically significant. This means that the difference we observe is not due to random chance. We use statistical tests to determine if the difference is statistically significant. If it is, then we can conclude that the change we made had an effect on the outcome we were measuring. If it is not, then we can conclude that the change we made did not have an effect on the outcome we were measuring.
+
+Two common statistical tests used in A/B testing are the t-test and the chi-squared test. The t-test is used to compare the means of two groups, while the chi-squared test is used to compare the proportions of two groups. The t-test is used when the outcome we are measuring is continuous, while the chi-squared test is used when the outcome we are measuring is categorical.
+
+Upper and lower bounds are also calculated to determine the range of values that the true difference between the two groups is likely to fall within. This is important because we want to make sure that the difference we observe is not due to random chance. If the true difference is likely to fall within the range of values we calculate, then we can be more confident that the difference we observe is not due to random chance.
+
+# Conclusion
+Finally, the results are analyzed to determine which version is more effective. If the change you made had a positive effect on the outcome you were measuring, then you would implement the change. If the change you made did not have a positive effect on the outcome you were measuring, then you would not implement the change. By doing this, you can make data-driven decisions that are based on evidence rather than intuition or guesswork. 
+
+# Use Cases
+
+A/B testing can be used to test almost anything that can be measured. Some common use cases include:
+
+- Testing different webpage layouts
+- Testing the effectiveness of different marketing messages
+- Testing the impact of different pricing strategies
+- Testing monetary metrics like bookings, transcations, ad revenue, etc 
+
+
+## Note
+
+- To keep it simple, AB testing does not always give the correct results. There are many pitfalls and biases that can affect the results of an A/B test. These will be covered in the next blog.
