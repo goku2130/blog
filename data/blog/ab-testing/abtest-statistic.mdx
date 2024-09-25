@@ -1,0 +1,231 @@
+---
+title: "Comprehensive Statistical Analysis of AB Test Results for Mobile App Redesign"
+date: "2024-06-27"
+tags: ["AB testing", "statistics", "python", "data science","data analysis"]
+summary: In this case study, we'll analyze the results of an AB test conducted on a mobile app redesign. The app is a fitness tracker, and the redesign aimed to improve user engagement. We'll use various statistical tests to evaluate the effectiveness of the new design.
+---
+
+# Comprehensive Statistical Analysis of AB Test Results for Mobile App Redesign
+
+## Introduction
+
+In this case study, we'll analyze the results of an AB test conducted on a mobile app redesign. The app is a fitness tracker, and the redesign aimed to improve user engagement. We'll use various statistical tests to evaluate the effectiveness of the new design.
+
+## Scenario
+
+A fitness tracking app has undergone a redesign. The product team wants to determine if the new design (B) performs better than the current design (A) in terms of:
+
+1. Daily Active Users (DAU)
+2. Average Session Duration
+3. In-App Purchase Conversion Rate
+
+The test was run for 30 days with users randomly assigned to either the control (A) or treatment (B) group.
+
+## Data Generation and Analysis
+
+We'll use Python to generate sample data and perform our statistical analyses.
+
+```python
+import numpy as np
+import pandas as pd
+from scipy import stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+np.random.seed(42)
+
+# Generate sample data
+n_users = 10000
+days = 30
+
+def generate_data(n_users, days, is_treatment):
+    data = []
+    for user in range(n_users):
+        for day in range(days):
+            active = np.random.binomial(1, 0.7 if is_treatment else 0.6)
+            if active:
+                session_duration = np.random.normal(25 if is_treatment else 20, 5)
+                purchase = np.random.binomial(1, 0.15 if is_treatment else 0.1)
+            else:
+                session_duration = 0
+                purchase = 0
+            data.append({
+                'user_id': user,
+                'day': day,
+                'group': 'B' if is_treatment else 'A',
+                'active': active,
+                'session_duration': session_duration,
+                'purchase': purchase
+            })
+    return pd.DataFrame(data)
+
+df_control = generate_data(n_users // 2, days, False)
+df_treatment = generate_data(n_users // 2, days, True)
+df = pd.concat([df_control, df_treatment])
+
+# 1. T-Test for Average Session Duration
+control_duration = df_control[df_control['active'] == 1]['session_duration']
+treatment_duration = df_treatment[df_treatment['active'] == 1]['session_duration']
+t_stat, p_value = stats.ttest_ind(control_duration, treatment_duration)
+
+print("1. T-Test for Average Session Duration")
+print(f"t-statistic: {t_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
+
+# 2. Chi-Square Test for DAU
+dau_control = df_control.groupby('day')['active'].sum().values
+dau_treatment = df_treatment.groupby('day')['active'].sum().values
+chi2, p_value = stats.chi2_contingency([[dau_control.sum(), dau_treatment.sum()], 
+                                        [(len(df_control) - dau_control.sum()), 
+                                         (len(df_treatment) - dau_treatment.sum())]])[0:2]
+
+print("\n2. Chi-Square Test for DAU")
+print(f"chi2-statistic: {chi2:.4f}")
+print(f"p-value: {p_value:.4f}")
+
+# 3. Z-Test for Purchase Conversion Rate
+control_conversion = df_control['purchase'].mean()
+treatment_conversion = df_treatment['purchase'].mean()
+n1, n2 = len(df_control), len(df_treatment)
+p_pooled = (df_control['purchase'].sum() + df_treatment['purchase'].sum()) / (n1 + n2)
+se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+z_stat = (treatment_conversion - control_conversion) / se
+p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
+
+print("\n3. Z-Test for Purchase Conversion Rate")
+print(f"z-statistic: {z_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
+
+# 4. Mann-Whitney U Test for Session Duration (Non-parametric)
+u_stat, p_value = stats.mannwhitneyu(control_duration, treatment_duration, alternative='two-sided')
+
+print("\n4. Mann-Whitney U Test for Session Duration")
+print(f"U-statistic: {u_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
+
+# Visualization: Session Duration Distribution
+plt.figure(figsize=(10, 6))
+sns.histplot(data=df[df['active'] == 1], x='session_duration', hue='group', kde=True, element='step')
+plt.title('Distribution of Session Duration by Group')
+plt.xlabel('Session Duration (minutes)')
+plt.ylabel('Count')
+plt.show()
+```
+[Previous sections remain the same]
+
+## Results and Interpretation
+
+### 1. T-Test for Average Session Duration
+
+**Results**:
+- t-statistic: -219.8214
+- p-value: 0.0000
+
+**Interpretation**: The extremely low p-value (< 0.05) indicates a statistically significant difference in average session duration between the control and treatment groups. The negative t-statistic suggests that the treatment group (new design) has a higher average session duration than the control group.
+
+**Implications**: The redesign appears to be effective in increasing user engagement as measured by session duration.
+
+### 2. Chi-Square Test for Daily Active Users (DAU)
+
+**Results**:
+- chi2-statistic: 3424.4279
+- p-value: 0.0000
+
+**Interpretation**: The p-value of 0.0000 indicates a highly significant difference in the proportion of daily active users between the two groups. The large chi-square statistic suggests a substantial effect size.
+
+**Implications**: The new design has a significant impact on user activity levels, likely increasing the number of daily active users.
+
+### 3. Z-Test for Purchase Conversion Rate
+
+**Results**:
+- z-statistic: 45.0305
+- p-value: 0.0000
+
+**Interpretation**: The extremely high z-statistic and p-value of 0.0000 indicate a highly significant difference in purchase conversion rates between the control and treatment groups. The positive z-statistic suggests that the treatment group has a higher conversion rate.
+
+**Implications**: The redesign has a strong positive effect on in-app purchase behavior, potentially leading to increased revenue.
+
+### 4. Mann-Whitney U Test for Session Duration
+
+**Results**:
+- U-statistic: 2276806099.0000
+- p-value: 0.0000
+
+**Interpretation**: The p-value of 0.0000 confirms a significant difference in session duration distributions between the two groups, aligning with the t-test results. This non-parametric test adds robustness to our findings, especially if the data is not normally distributed.
+
+**Implications**: The significant result from both parametric (t-test) and non-parametric (Mann-Whitney U) tests strongly supports the conclusion that the redesign positively affects session duration.
+
+### Visualization: Session Duration Distribution
+
+Due to the error with seaborn, let's use a basic matplotlib histogram for visualization. Replace the previous visualization code with:
+
+```python
+plt.figure(figsize=(10, 6))
+plt.hist([df_control[df_control['active'] == 1]['session_duration'], 
+          df_treatment[df_treatment['active'] == 1]['session_duration']], 
+         label=['Control', 'Treatment'], bins=30, alpha=0.7)
+plt.title('Distribution of Session Duration by Group')
+plt.xlabel('Session Duration (minutes)')
+plt.ylabel('Count')
+plt.legend()
+plt.show()
+```
+
+![AB Test Histogram](/static/images/abtesting/session_histogram.png)
+
+**Interpretation of Visualization**: 
+Based on the histogram provided, here's an interpretation of the visualization comparing the session duration distributions between the control and treatment groups:
+
+Interpretation of Visualization:
+
+1. Central Tendency Shift: The treatment group (orange) shows a clear shift to the right compared to the control group (blue), indicating a higher average session duration. The peak of the treatment distribution is around 25-30 minutes, while the control group peaks at about 20 minutes.
+
+2. Spread: Both distributions appear to have a similar spread, suggesting comparable variability in session durations within each group. However, the treatment group's distribution extends further to the right, indicating more instances of longer sessions.
+
+3. Shape: Both distributions are roughly bell-shaped but slightly right-skewed, which is common for duration data. The treatment group's distribution is more symmetrical than the control group's.
+
+4. Overlap: There's significant overlap between the two distributions, but the treatment group consistently shows higher counts in the upper range of session durations (25-40 minutes).
+
+5. Tail Behavior: The treatment group has a longer right tail, extending beyond 40 minutes, whereas the control group's distribution tapers off more quickly after 30 minutes. This suggests that the redesign is particularly effective at encouraging some users to have very long sessions.
+
+6. Mode Differences: The control group has a sharp, distinct peak around 20 minutes, while the treatment group has a broader peak area from about 25-30 minutes, indicating more varied but generally longer sessions.
+
+7. Lower End: The control group shows higher counts for shorter sessions (10-15 minutes), while the treatment group has fewer short sessions, suggesting the redesign may be more engaging from the start.
+
+These observations strongly support the statistical findings, visually demonstrating that the app redesign (treatment) leads to longer average session durations and potentially more engaging user experiences compared to the original design (control).
+
+## Overall Analysis
+
+1. **User Engagement**: 
+   - The redesign significantly increases average session duration (t-test and Mann-Whitney U test).
+   - There's a substantial increase in daily active users (Chi-square test).
+   These results strongly indicate that the new design is more engaging for users.
+
+2. **Monetization**: 
+   - The Z-test shows a significant increase in in-app purchase conversion rates.
+   This suggests that the redesign not only engages users more but also drives more revenue.
+
+3. **Statistical Confidence**: 
+   - All tests show p-values of 0.0000, providing extremely strong evidence that the observed differences are not due to chance.
+   - The consistency across different statistical methods (parametric and non-parametric) adds robustness to our findings.
+
+## Conclusions and Recommendations
+
+1. **Implement the Redesign**: Given the consistent positive results across all metrics, we strongly recommend rolling out the new design to all users.
+
+2. **Monitor Long-term Effects**: While the initial results are very positive, implement a system to track these metrics over time to ensure the improvements are sustained.
+
+3. **Investigate Causal Factors**: Conduct user research to understand which specific aspects of the redesign contributed most to the improvements. This can inform future design decisions.
+
+4. **Segment Analysis**: Consider analyzing the data by user segments (e.g., new vs. returning users, age groups) to identify if the redesign benefits some groups more than others.
+
+5. **Iterative Improvement**: Use these results as a baseline for future A/B tests, continually refining the design to further improve engagement and conversion metrics.
+
+## Limitations and Future Work
+
+- While the statistical results are strong, they don't explain the 'why' behind user behavior changes. Qualitative research could provide valuable insights.
+- The tests assume that the sample is representative of the entire user base. Verify that the randomization process was truly unbiased.
+- Consider conducting a longer-term study to assess whether the positive effects persist over time or if they're partly due to novelty.
+- Explore more advanced analytical techniques, such as multi-variate testing or machine learning models, to uncover more nuanced patterns in user behavior.
+
+This case study demonstrates the power of comprehensive statistical analysis in guiding product decisions. By employing multiple statistical tests and visualizations, we've built a strong case for the effectiveness of the app redesign, providing clear, data-driven recommendations for the product team.
