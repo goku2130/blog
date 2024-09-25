@@ -1,0 +1,195 @@
+---
+title: "Statistical Foundations for A/B Testing: From Basic Principles to Frequentist and Bayesian Approaches"
+date: "2024-07-22"
+tags: ["AB testing", "statistics", "python", "data science", "frequentist", "bayesian"]
+summary: This comprehensive guide explores the fundamental statistical principles underlying A/B testing, covering basic concepts, hypothesis testing, and an introduction to both frequentist and Bayesian approaches.
+---
+
+# Statistical Foundations for A/B Testing: From Basic Principles to Frequentist and Bayesian Approaches
+
+## Introduction
+
+A/B testing is a powerful tool in the arsenal of data-driven decision making. To truly harness its potential, it's crucial to understand the statistical foundations that underpin this methodology. This blog post will guide you through the essential statistical concepts, from basic principles to the more advanced frequentist and Bayesian approaches.
+
+## 1. Basic Statistical Concepts
+
+### Population vs. Sample
+
+In statistics, we often work with samples to make inferences about populations. Let's illustrate this concept with Python:
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Create a population
+population = np.random.normal(loc=100, scale=15, size=100000)
+
+# Take a sample
+sample = np.random.choice(population, size=1000, replace=False)
+
+# Visualize
+plt.figure(figsize=(10, 6))
+plt.hist(population, bins=50, alpha=0.5, label='Population')
+plt.hist(sample, bins=50, alpha=0.5, label='Sample')
+plt.legend()
+plt.title('Population vs Sample')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.show()
+
+print(f"Population mean: {population.mean():.2f}")
+print(f"Sample mean: {sample.mean():.2f}")
+```
+
+This code creates a population with a normal distribution and takes a random sample from it. The histogram shows how the sample distribution approximates the population distribution.
+
+### Probability Distributions
+
+Understanding probability distributions is crucial for A/B testing. The normal distribution is particularly important:
+
+```python
+from scipy import stats
+
+x = np.linspace(-4, 4, 100)
+plt.figure(figsize=(10, 6))
+plt.plot(x, stats.norm.pdf(x, 0, 1))
+plt.title('Standard Normal Distribution')
+plt.xlabel('z-score')
+plt.ylabel('Probability Density')
+plt.show()
+```
+
+This code plots the standard normal distribution, which is fundamental to many statistical tests used in A/B testing.
+
+## 2. Hypothesis Testing
+
+Hypothesis testing is the backbone of A/B testing. Let's break down the key components:
+
+### Null and Alternative Hypotheses
+
+In A/B testing, we typically set up hypotheses like:
+
+- Null Hypothesis (H0): There is no significant difference between A and B.
+- Alternative Hypothesis (H1): There is a significant difference between A and B.
+
+### p-values and Significance Levels
+
+The p-value is the probability of obtaining results at least as extreme as the observed results, assuming the null hypothesis is true. Let's simulate this:
+
+```python
+# Simulate two groups
+group_a = np.random.normal(100, 15, 1000)
+group_b = np.random.normal(102, 15, 1000)
+
+# Perform t-test
+t_stat, p_value = stats.ttest_ind(group_a, group_b)
+
+print(f"t-statistic: {t_stat:.4f}")
+print(f"p-value: {p_value:.4f}")
+```
+
+If the p-value is less than our chosen significance level (often 0.05), we reject the null hypothesis.
+
+## 3. Central Limit Theorem
+
+The Central Limit Theorem (CLT) is crucial in understanding why many A/B testing methods work. Let's visualize it:
+
+```python
+sample_means = []
+for _ in range(1000):
+    sample = np.random.choice(population, size=30, replace=True)
+    sample_means.append(sample.mean())
+
+plt.figure(figsize=(10, 6))
+plt.hist(sample_means, bins=50)
+plt.title('Distribution of Sample Means')
+plt.xlabel('Sample Mean')
+plt.ylabel('Frequency')
+plt.show()
+
+print(f"Mean of sample means: {np.mean(sample_means):.2f}")
+print(f"Population mean: {population.mean():.2f}")
+```
+
+This demonstrates how the distribution of sample means approaches a normal distribution, even when the underlying population is not normally distributed.
+
+## 4. Confidence Intervals
+
+Confidence intervals provide a range of plausible values for a population parameter:
+
+```python
+sample = np.random.choice(population, size=100, replace=False)
+sample_mean = np.mean(sample)
+sample_std = np.std(sample, ddof=1)
+confidence_interval = stats.t.interval(alpha=0.95, df=len(sample)-1,
+                                       loc=sample_mean,
+                                       scale=stats.sem(sample))
+
+print(f"95% Confidence Interval: {confidence_interval}")
+```
+
+This calculates a 95% confidence interval for the mean of our sample.
+
+## 5. The Frequentist Approach to A/B Testing
+
+The frequentist approach, which is traditional in A/B testing, relies on p-values and significance levels. Here's a simple A/B test using this approach:
+
+```python
+# Simulate click-through rates for two versions
+version_a = np.random.binomial(1, 0.1, 1000)
+version_b = np.random.binomial(1, 0.12, 1000)
+
+# Perform chi-square test
+contingency_table = [[version_a.sum(), len(version_a) - version_a.sum()],
+                     [version_b.sum(), len(version_b) - version_b.sum()]]
+chi2, p_value, dof, expected = stats.chi2_contingency(contingency_table)
+
+print(f"Chi-square statistic: {chi2:.4f}")
+print(f"p-value: {p_value:.4f}")
+```
+
+This example uses a chi-square test to compare click-through rates between two versions.
+
+## 6. Introduction to Bayesian Approach
+
+The Bayesian approach differs from the frequentist by incorporating prior beliefs and updating them with observed data. Here's a simple Bayesian A/B test:
+
+```python
+from scipy.stats import beta
+
+def bayesian_ab_test(a_conversions, a_trials, b_conversions, b_trials, samples=100000):
+    a_posterior = beta.rvs(a_conversions + 1, a_trials - a_conversions + 1, size=samples)
+    b_posterior = beta.rvs(b_conversions + 1, b_trials - b_conversions + 1, size=samples)
+    
+    prob_b_better = (b_posterior > a_posterior).mean()
+    
+    return prob_b_better
+
+# Example usage
+prob_b_better = bayesian_ab_test(120, 1000, 140, 1000)
+print(f"Probability that B is better than A: {prob_b_better:.4f}")
+
+# Visualize posteriors
+a_posterior = beta.rvs(121, 881, size=10000)
+b_posterior = beta.rvs(141, 861, size=10000)
+
+plt.figure(figsize=(10, 6))
+plt.hist(a_posterior, bins=50, alpha=0.5, label='A')
+plt.hist(b_posterior, bins=50, alpha=0.5, label='B')
+plt.legend()
+plt.title('Posterior Distributions')
+plt.xlabel('Conversion Rate')
+plt.ylabel('Frequency')
+plt.show()
+```
+![Posterior Distribution](/static/images/abtesting/bayesian_hist.png)
+
+This Bayesian approach gives us a probability that one version is better than the other, rather than a binary significant/not significant result.
+
+## Conclusion
+
+Understanding these statistical foundations is crucial for effectively implementing and interpreting A/B tests. While the frequentist approach is more commonly used due to its simplicity and established methodologies, the Bayesian approach offers a more nuanced interpretation of results, especially useful in scenarios with prior information or when continuous monitoring is needed.
+
+As you delve deeper into A/B testing, remember that these statistical tools are means to an end - making better, data-driven decisions. Always consider the practical significance of your results alongside their statistical significance.
+
+In future posts, we'll explore more advanced topics in A/B testing, including multi-armed bandits, sequential testing, and handling multiple metrics. Stay tuned!
